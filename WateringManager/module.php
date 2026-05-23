@@ -11,6 +11,7 @@ class WateringManager extends IPSModule
         $this->RegisterPropertyInteger('DefaultDuration', 10);
         $this->RegisterPropertyInteger('PauseBetweenValves', 10);
         $this->RegisterPropertyInteger('MaxDuration', 60);
+
         $this->RegisterPropertyString('Valves', '[]');
         $this->RegisterPropertyString('Groups', '[]');
     }
@@ -18,6 +19,25 @@ class WateringManager extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
+    }
+
+    public function GetConfigurationForm()
+    {
+        $file = __DIR__ . '/form.json';
+
+        if (!file_exists($file)) {
+            return json_encode([
+                'elements' => [
+                    [
+                        'type' => 'Label',
+                        'caption' => 'form.json wurde nicht gefunden: ' . $file
+                    ]
+                ],
+                'actions' => []
+            ]);
+        }
+
+        return file_get_contents($file);
     }
 
     public function EmergencyStop()
