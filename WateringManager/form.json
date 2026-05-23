@@ -32,7 +32,7 @@
             "items": [
                 {
                     "type": "Label",
-                    "caption": "Hier werden die Variablen ausgewählt, welche die Ventile schalten. Bei Auto werden Ein-/Aus-Werte aus Variablentyp und Profil ermittelt."
+                    "caption": "Nach dem Anlegen oder Ändern von Ventilen bitte Übernehmen drücken. Danach werden die Auswahlprofile und Gruppen-Auswahllisten neu aufgebaut."
                 },
                 {
                     "type": "List",
@@ -65,10 +65,20 @@
                             }
                         },
                         {
-                            "caption": "VariableID",
+                            "caption": "Ventil-Variable",
                             "name": "VariableID",
-                            "width": "100px",
-                            "add": 0
+                            "width": "220px",
+                            "add": 0,
+                            "edit": {
+                                "type": "SelectVariable",
+                                "requiredAction": 1,
+                                "validVariableTypes": [
+                                    0,
+                                    1,
+                                    2,
+                                    3
+                                ]
+                            }
                         },
                         {
                             "caption": "Auto",
@@ -108,52 +118,6 @@
                                 "maximum": 240
                             }
                         }
-                    ],
-                    "form": [
-                        {
-                            "type": "CheckBox",
-                            "name": "Active",
-                            "caption": "Aktiv"
-                        },
-                        {
-                            "type": "ValidationTextBox",
-                            "name": "Name",
-                            "caption": "Bezeichnung"
-                        },
-                        {
-                            "type": "SelectVariable",
-                            "name": "VariableID",
-                            "caption": "Ventil-Variable",
-                            "requiredAction": 1,
-                            "validVariableTypes": [
-                                0,
-                                1,
-                                2,
-                                3
-                            ]
-                        },
-                        {
-                            "type": "CheckBox",
-                            "name": "AutoValues",
-                            "caption": "Ein-/Aus-Wert automatisch aus Variablentyp/Profil ermitteln"
-                        },
-                        {
-                            "type": "ValidationTextBox",
-                            "name": "OnValue",
-                            "caption": "Ein-Wert manuell, optional"
-                        },
-                        {
-                            "type": "ValidationTextBox",
-                            "name": "OffValue",
-                            "caption": "Aus-Wert manuell, optional"
-                        },
-                        {
-                            "type": "NumberSpinner",
-                            "name": "Duration",
-                            "caption": "Standardlaufzeit in Minuten",
-                            "minimum": 1,
-                            "maximum": 240
-                        }
                     ]
                 }
             ]
@@ -165,7 +129,7 @@
             "items": [
                 {
                     "type": "Label",
-                    "caption": "Nach dem Anlegen oder Ändern von Ventilen zuerst Übernehmen drücken. Danach können die Ventile hier in den Gruppen ausgewählt werden."
+                    "caption": "Die auswählbaren Ventile werden aus der Ventilliste erzeugt. Wenn hier keine Ventile auswählbar sind: oben Ventile aktivieren, Variable auswählen, Übernehmen drücken, Instanz neu öffnen."
                 },
                 {
                     "type": "List",
@@ -196,26 +160,82 @@
                         {
                             "caption": "Ventil 1",
                             "name": "Valve1",
-                            "width": "150px",
-                            "add": ""
+                            "width": "160px",
+                            "add": "",
+                            "edit": {
+                                "type": "Select",
+                                "options": []
+                            }
                         },
                         {
                             "caption": "Ventil 2",
                             "name": "Valve2",
-                            "width": "150px",
-                            "add": ""
+                            "width": "160px",
+                            "add": "",
+                            "edit": {
+                                "type": "Select",
+                                "options": []
+                            }
                         },
                         {
                             "caption": "Ventil 3",
                             "name": "Valve3",
-                            "width": "150px",
-                            "add": ""
+                            "width": "160px",
+                            "add": "",
+                            "edit": {
+                                "type": "Select",
+                                "options": []
+                            }
                         },
                         {
                             "caption": "Ventil 4",
                             "name": "Valve4",
-                            "width": "150px",
-                            "add": ""
+                            "width": "160px",
+                            "add": "",
+                            "edit": {
+                                "type": "Select",
+                                "options": []
+                            }
+                        },
+                        {
+                            "caption": "Ventil 5",
+                            "name": "Valve5",
+                            "width": "160px",
+                            "add": "",
+                            "edit": {
+                                "type": "Select",
+                                "options": []
+                            }
+                        },
+                        {
+                            "caption": "Ventil 6",
+                            "name": "Valve6",
+                            "width": "160px",
+                            "add": "",
+                            "edit": {
+                                "type": "Select",
+                                "options": []
+                            }
+                        },
+                        {
+                            "caption": "Ventil 7",
+                            "name": "Valve7",
+                            "width": "160px",
+                            "add": "",
+                            "edit": {
+                                "type": "Select",
+                                "options": []
+                            }
+                        },
+                        {
+                            "caption": "Ventil 8",
+                            "name": "Valve8",
+                            "width": "160px",
+                            "add": "",
+                            "edit": {
+                                "type": "Select",
+                                "options": []
+                            }
                         },
                         {
                             "caption": "Laufzeit Min.",
@@ -227,73 +247,6 @@
                                 "minimum": 1,
                                 "maximum": 240
                             }
-                        }
-                    ],
-                    "form": [
-                        {
-                            "type": "CheckBox",
-                            "name": "Active",
-                            "caption": "Aktiv"
-                        },
-                        {
-                            "type": "ValidationTextBox",
-                            "name": "Name",
-                            "caption": "Gruppenname"
-                        },
-                        {
-                            "type": "Select",
-                            "name": "Valve1",
-                            "caption": "Ventil 1",
-                            "options": []
-                        },
-                        {
-                            "type": "Select",
-                            "name": "Valve2",
-                            "caption": "Ventil 2",
-                            "options": []
-                        },
-                        {
-                            "type": "Select",
-                            "name": "Valve3",
-                            "caption": "Ventil 3",
-                            "options": []
-                        },
-                        {
-                            "type": "Select",
-                            "name": "Valve4",
-                            "caption": "Ventil 4",
-                            "options": []
-                        },
-                        {
-                            "type": "Select",
-                            "name": "Valve5",
-                            "caption": "Ventil 5",
-                            "options": []
-                        },
-                        {
-                            "type": "Select",
-                            "name": "Valve6",
-                            "caption": "Ventil 6",
-                            "options": []
-                        },
-                        {
-                            "type": "Select",
-                            "name": "Valve7",
-                            "caption": "Ventil 7",
-                            "options": []
-                        },
-                        {
-                            "type": "Select",
-                            "name": "Valve8",
-                            "caption": "Ventil 8",
-                            "options": []
-                        },
-                        {
-                            "type": "NumberSpinner",
-                            "name": "Duration",
-                            "caption": "Laufzeit je Ventil in Minuten",
-                            "minimum": 1,
-                            "maximum": 240
                         }
                     ]
                 }
