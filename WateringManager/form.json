@@ -67,7 +67,7 @@
                         {
                             "caption": "Ventil-Variable",
                             "name": "VariableID",
-                            "width": "220px",
+                            "width": "260px",
                             "add": 0,
                             "edit": {
                                 "type": "SelectVariable",

@@ -67,76 +67,90 @@ class WateringManager extends IPSModule
     }
 
     public function GetConfigurationForm()
-{
-    $file = __DIR__ . '/form.json';
+    {
+        $file = __DIR__ . '/form.json';
 
-    if (!file_exists($file)) {
-        return json_encode([
-            'elements' => [
-                [
-                    'type' => 'Label',
-                    'caption' => 'form.json wurde nicht gefunden: ' . $file
-                ]
-            ],
-            'actions' => []
-        ]);
-    }
+        if (!file_exists($file)) {
+            return json_encode([
+                'elements' => [
+                    [
+                        'type' => 'Label',
+                        'caption' => 'form.json wurde nicht gefunden: ' . $file
+                    ]
+                ],
+                'actions' => []
+            ]);
+        }
 
-    $form = json_decode(file_get_contents($file), true);
+        $form = json_decode(file_get_contents($file), true);
 
-    if (!is_array($form)) {
-        return json_encode([
-            'elements' => [
-                [
-                    'type' => 'Label',
-                    'caption' => 'form.json ist kein gültiges JSON.'
-                ]
-            ],
-            'actions' => []
-        ]);
-    }
+        if (!is_array($form)) {
+            return json_encode([
+                'elements' => [
+                    [
+                        'type' => 'Label',
+                        'caption' => 'form.json ist kein gültiges JSON.'
+                    ]
+                ],
+                'actions' => []
+            ]);
+        }
 
-    $options = $this->BuildValveOptions();
+        $valveCount = count($this->GetActiveValves());
+        $switchableValveCount = 0;
 
-    if (isset($form['elements']) && is_array($form['elements'])) {
-        foreach ($form['elements'] as &$element) {
-            if (($element['type'] ?? '') !== 'ExpansionPanel' || ($element['caption'] ?? '') !== 'Gruppen') {
-                continue;
+        foreach ($this->GetActiveValves() as $valve) {
+            if ((int)($valve['VariableID'] ?? 0) > 0) {
+                $switchableValveCount++;
             }
+        }
 
-            if (!isset($element['items']) || !is_array($element['items'])) {
-                continue;
-            }
+        array_unshift($form['elements'], [
+            'type' => 'Label',
+            'caption' => 'Diagnose: Aktive Ventile: ' . $valveCount . ' / mit VariableID: ' . $switchableValveCount . '. Nach Änderungen bitte Übernehmen drücken und die Instanz neu öffnen.'
+        ]);
 
-            foreach ($element['items'] as &$item) {
-                if (($item['type'] ?? '') !== 'List' || ($item['name'] ?? '') !== 'Groups') {
+        $options = $this->BuildValveOptions();
+
+        if (isset($form['elements']) && is_array($form['elements'])) {
+            foreach ($form['elements'] as &$element) {
+                if (($element['type'] ?? '') !== 'ExpansionPanel' || ($element['caption'] ?? '') !== 'Gruppen') {
                     continue;
                 }
 
-                if (isset($item['columns']) && is_array($item['columns'])) {
-                    foreach ($item['columns'] as &$column) {
-                        if (isset($column['name']) && preg_match('/^Valve[1-8]$/', (string)$column['name'])) {
-                            $column['edit'] = [
-                                'type' => 'Select',
-                                'options' => $options
-                            ];
-                        }
-                    }
+                if (!isset($element['items']) || !is_array($element['items'])) {
+                    continue;
                 }
 
-                if (isset($item['form']) && is_array($item['form'])) {
-                    foreach ($item['form'] as &$field) {
-                        if (isset($field['name']) && preg_match('/^Valve[1-8]$/', (string)$field['name'])) {
-                            $field['options'] = $options;
+                foreach ($element['items'] as &$item) {
+                    if (($item['type'] ?? '') !== 'List' || ($item['name'] ?? '') !== 'Groups') {
+                        continue;
+                    }
+
+                    if (isset($item['columns']) && is_array($item['columns'])) {
+                        foreach ($item['columns'] as &$column) {
+                            if (isset($column['name']) && preg_match('/^Valve[1-8]$/', (string)$column['name'])) {
+                                $column['edit'] = [
+                                    'type' => 'Select',
+                                    'options' => $options
+                                ];
+                            }
+                        }
+                    }
+
+                    if (isset($item['form']) && is_array($item['form'])) {
+                        foreach ($item['form'] as &$field) {
+                            if (isset($field['name']) && preg_match('/^Valve[1-8]$/', (string)$field['name'])) {
+                                $field['options'] = $options;
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    return json_encode($form);
-}
+        return json_encode($form);
+    }
 
     public function RequestAction($Ident, $Value)
     {
@@ -498,8 +512,7 @@ class WateringManager extends IPSModule
         return array_values(array_filter($valves, function ($valve) {
             return isset($valve['Active'])
                 && (bool)$valve['Active'] === true
-                && trim((string)($valve['Name'] ?? '')) !== ''
-                && (int)($valve['VariableID'] ?? 0) > 0;
+                && trim((string)($valve['Name'] ?? '')) !== '';
         }));
     }
 
