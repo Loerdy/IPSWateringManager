@@ -165,7 +165,7 @@
             "items": [
                 {
                     "type": "Label",
-                    "caption": "Die Ventile der Gruppe werden aus den oben angelegten Ventilen ausgewählt. Nach dem Anlegen oder Ändern von Ventilen bitte erst Übernehmen drücken, dann die Gruppen bearbeiten."
+                    "caption": "Nach dem Anlegen oder Ändern von Ventilen zuerst Übernehmen drücken. Danach können die Ventile hier in den Gruppen ausgewählt werden."
                 },
                 {
                     "type": "List",

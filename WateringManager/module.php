@@ -53,9 +53,11 @@ class WateringManager extends IPSModule
         $this->RegisterVariableBoolean('Stop', 'Stop / Not-Aus', '~Switch', 80);
         $this->EnableAction('Stop');
 
-        if (@$this->GetIDForIdent('Duration') > 0 && GetValue($this->GetIDForIdent('Duration')) <= 0) {
+        if ($this->HasIdentSafe('Duration') && GetValue($this->GetIDForIdent('Duration')) <= 0) {
             SetValue($this->GetIDForIdent('Duration'), $this->ReadPropertyInteger('DefaultDuration'));
         }
+
+        $this->NormalizeSelectionValues();
 
         $this->SafeSetValue('Status', 'Bereit');
         $this->SafeSetValue('ActiveValve', '-');
@@ -379,47 +381,73 @@ class WateringManager extends IPSModule
     private function RegisterValveProfile(): void
     {
         $profile = 'BWM.Valves.' . $this->InstanceID;
-
-        if (!IPS_VariableProfileExists($profile)) {
-            IPS_CreateVariableProfile($profile, 1);
-        }
-
-        $this->ClearProfileAssociations($profile);
-
         $valves = $this->GetActiveValves();
 
+        $associations = [];
+
         foreach ($valves as $index => $valve) {
-            IPS_SetVariableProfileAssociation($profile, $index, (string)$valve['Name'], '', -1);
+            $associations[$index] = (string)$valve['Name'];
         }
+
+        $this->RebuildIntegerAssociationProfile($profile, $associations);
     }
 
     private function RegisterGroupProfile(): void
     {
         $profile = 'BWM.Groups.' . $this->InstanceID;
+        $groups = $this->GetActiveGroups();
 
+        $associations = [];
+
+        foreach ($groups as $index => $group) {
+            $associations[$index] = (string)$group['Name'];
+        }
+
+        $this->RebuildIntegerAssociationProfile($profile, $associations);
+    }
+
+    private function RebuildIntegerAssociationProfile(string $profile, array $associations): void
+    {
         if (!IPS_VariableProfileExists($profile)) {
             IPS_CreateVariableProfile($profile, 1);
         }
 
-        $this->ClearProfileAssociations($profile);
+        $oldProfile = IPS_GetVariableProfile($profile);
 
-        $groups = $this->GetActiveGroups();
+        if (isset($oldProfile['Associations']) && is_array($oldProfile['Associations'])) {
+            foreach ($oldProfile['Associations'] as $association) {
+                IPS_SetVariableProfileAssociation($profile, $association['Value'], '', '', -1);
+            }
+        }
 
-        foreach ($groups as $index => $group) {
-            IPS_SetVariableProfileAssociation($profile, $index, (string)$group['Name'], '', -1);
+        $max = count($associations) > 0 ? max(array_keys($associations)) : 0;
+
+        IPS_SetVariableProfileValues($profile, 0, $max, 1);
+        IPS_SetVariableProfileDigits($profile, 0);
+
+        foreach ($associations as $value => $caption) {
+            IPS_SetVariableProfileAssociation($profile, (int)$value, $caption, '', -1);
         }
     }
 
-    private function ClearProfileAssociations(string $profile): void
+    private function NormalizeSelectionValues(): void
     {
-        $profileData = IPS_GetVariableProfile($profile);
+        $valves = $this->GetActiveValves();
 
-        if (!isset($profileData['Associations']) || !is_array($profileData['Associations'])) {
-            return;
+        if ($this->HasIdentSafe('SelectedValve')) {
+            $selectedValve = GetValue($this->GetIDForIdent('SelectedValve'));
+            if (!isset($valves[$selectedValve])) {
+                SetValue($this->GetIDForIdent('SelectedValve'), 0);
+            }
         }
 
-        foreach ($profileData['Associations'] as $association) {
-            IPS_SetVariableProfileAssociation($profile, $association['Value'], '', '', -1);
+        $groups = $this->GetActiveGroups();
+
+        if ($this->HasIdentSafe('SelectedGroup')) {
+            $selectedGroup = GetValue($this->GetIDForIdent('SelectedGroup'));
+            if (!isset($groups[$selectedGroup])) {
+                SetValue($this->GetIDForIdent('SelectedGroup'), 0);
+            }
         }
     }
 
@@ -432,20 +460,10 @@ class WateringManager extends IPSModule
             ]
         ];
 
-        $valves = json_decode($this->ReadPropertyString('Valves'), true);
-
-        if (!is_array($valves)) {
-            return $options;
-        }
-
-        foreach ($valves as $valve) {
+        foreach ($this->GetActiveValves() as $valve) {
             $name = trim((string)($valve['Name'] ?? ''));
 
             if ($name === '') {
-                continue;
-            }
-
-            if (isset($valve['Active']) && (bool)$valve['Active'] !== true) {
                 continue;
             }
 
@@ -502,6 +520,16 @@ class WateringManager extends IPSModule
             }
         }
 
+        // Abwärtskompatibilität zur alten Konfiguration mit kommaseparierter Liste.
+        if (count($names) === 0 && isset($group['Valves'])) {
+            $oldNames = array_filter(array_map('trim', explode(',', (string)$group['Valves'])));
+            foreach ($oldNames as $oldName) {
+                if ($oldName !== '') {
+                    $names[] = $oldName;
+                }
+            }
+        }
+
         return $names;
     }
 
@@ -509,10 +537,8 @@ class WateringManager extends IPSModule
     {
         $durationMinutes = 0;
 
-        try {
-            $durationMinutes = GetValue($this->GetIDForIdent('Duration'));
-        } catch (Throwable $e) {
-            $durationMinutes = 0;
+        if ($this->HasIdentSafe('Duration')) {
+            $durationMinutes = (int)GetValue($this->GetIDForIdent('Duration'));
         }
 
         if ($durationMinutes <= 0) {
@@ -688,6 +714,16 @@ class WateringManager extends IPSModule
         }
 
         return $value;
+    }
+
+    private function HasIdentSafe(string $ident): bool
+    {
+        try {
+            $this->GetIDForIdent($ident);
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     private function SafeSetValue(string $ident, $value): void
