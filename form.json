@@ -1,0 +1,167 @@
+{
+    "elements": [
+        {
+            "type": "Label",
+            "caption": "Bewässerungs Manager"
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "DefaultDuration",
+            "caption": "Standardlaufzeit in Minuten",
+            "minimum": 1,
+            "maximum": 240
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "PauseBetweenValves",
+            "caption": "Pause zwischen Ventilen in Sekunden",
+            "minimum": 0,
+            "maximum": 600
+        },
+        {
+            "type": "NumberSpinner",
+            "name": "MaxDuration",
+            "caption": "Maximale Laufzeit pro Ventil in Minuten",
+            "minimum": 1,
+            "maximum": 240
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Ventile",
+            "items": [
+                {
+                    "type": "List",
+                    "name": "Valves",
+                    "caption": "Ventile",
+                    "rowCount": 10,
+                    "add": true,
+                    "delete": true,
+                    "sort": {
+                        "column": "Name",
+                        "direction": "ascending"
+                    },
+                    "columns": [
+                        {
+                            "caption": "Aktiv",
+                            "name": "Active",
+                            "width": "80px",
+                            "add": true,
+                            "edit": {
+                                "type": "CheckBox"
+                            }
+                        },
+                        {
+                            "caption": "Name",
+                            "name": "Name",
+                            "width": "250px",
+                            "add": "",
+                            "edit": {
+                                "type": "ValidationTextBox"
+                            }
+                        },
+                        {
+                            "caption": "VariableID",
+                            "name": "VariableID",
+                            "width": "120px",
+                            "add": 0,
+                            "edit": {
+                                "type": "NumberSpinner",
+                                "minimum": 1
+                            }
+                        },
+                        {
+                            "caption": "Ein-Wert",
+                            "name": "OnValue",
+                            "width": "100px",
+                            "add": true,
+                            "edit": {
+                                "type": "ValidationTextBox"
+                            }
+                        },
+                        {
+                            "caption": "Aus-Wert",
+                            "name": "OffValue",
+                            "width": "100px",
+                            "add": false,
+                            "edit": {
+                                "type": "ValidationTextBox"
+                            }
+                        },
+                        {
+                            "caption": "Laufzeit Min.",
+                            "name": "Duration",
+                            "width": "120px",
+                            "add": 10,
+                            "edit": {
+                                "type": "NumberSpinner",
+                                "minimum": 1,
+                                "maximum": 240
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Gruppen",
+            "items": [
+                {
+                    "type": "List",
+                    "name": "Groups",
+                    "caption": "Gruppen",
+                    "rowCount": 10,
+                    "add": true,
+                    "delete": true,
+                    "columns": [
+                        {
+                            "caption": "Aktiv",
+                            "name": "Active",
+                            "width": "80px",
+                            "add": true,
+                            "edit": {
+                                "type": "CheckBox"
+                            }
+                        },
+                        {
+                            "caption": "Name",
+                            "name": "Name",
+                            "width": "250px",
+                            "add": "",
+                            "edit": {
+                                "type": "ValidationTextBox"
+                            }
+                        },
+                        {
+                            "caption": "Ventile",
+                            "name": "Valves",
+                            "width": "400px",
+                            "add": "",
+                            "edit": {
+                                "type": "ValidationTextBox"
+                            }
+                        },
+                        {
+                            "caption": "Laufzeit Min.",
+                            "name": "Duration",
+                            "width": "120px",
+                            "add": 10,
+                            "edit": {
+                                "type": "NumberSpinner",
+                                "minimum": 1,
+                                "maximum": 240
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "type": "Button",
+            "caption": "Alle Ventile ausschalten",
+            "onClick": "BWM_EmergencyStop($id);"
+        }
+    ]
+}

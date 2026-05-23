@@ -1,0 +1,12 @@
+{
+    "id": "{92691882-8233-ACA2-E6EA-A65FA759D95A}",
+    "name": "IPSWateringManager",
+    "author": "Loerd Greves",
+    "url": "",
+    "compatibility": {
+        "version": "7.0"
+    },
+    "version": "0.1",
+    "build": 1,
+    "date": 0
+}
