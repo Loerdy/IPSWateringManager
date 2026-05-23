@@ -352,13 +352,8 @@ class WateringManager extends IPSModule
         }
 
         try {
-            $durationMinutes = (int)($group['Duration'] ?? 0);
-
-            if ($durationMinutes <= 0) {
-                $durationSeconds = $this->GetRequestedDurationSeconds($nextValve);
-            } else {
-                $durationSeconds = $this->LimitDurationSeconds($durationMinutes * 60);
-            }
+            // Auch im Gruppenlauf hat die WebFront-Variable "Laufzeit Minuten" immer Vorrang.
+            $durationSeconds = $this->GetRequestedDurationSeconds($nextValve);
 
             $this->SwitchValve($nextValve, true);
 
@@ -557,18 +552,16 @@ class WateringManager extends IPSModule
         return $names;
     }
 
-    private function GetRequestedDurationSeconds(array $valve): int
+    private function GetRequestedDurationSeconds(array $valve = []): int
     {
         $durationMinutes = 0;
 
+        // Die WebFront-Variable hat immer Vorrang.
         if ($this->HasIdentSafe('Duration')) {
             $durationMinutes = (int)GetValue($this->GetIDForIdent('Duration'));
         }
 
-        if ($durationMinutes <= 0) {
-            $durationMinutes = (int)($valve['Duration'] ?? 0);
-        }
-
+        // DefaultDuration ist nur der Fallback, wenn im WebFront 0 oder kein Wert gesetzt ist.
         if ($durationMinutes <= 0) {
             $durationMinutes = $this->ReadPropertyInteger('DefaultDuration');
         }

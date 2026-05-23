@@ -32,7 +32,7 @@
             "items": [
                 {
                     "type": "Label",
-                    "caption": "Nach dem Anlegen oder Ändern von Ventilen bitte Übernehmen drücken. Danach werden die Auswahlprofile und Gruppen-Auswahllisten neu aufgebaut."
+                    "caption": "Die Laufzeit wird im WebFront über „Laufzeit Minuten“ gesetzt. Die Default-Zeit oben wird nur verwendet, wenn im WebFront kein gültiger Wert gesetzt ist."
                 },
                 {
                     "type": "List",
@@ -106,17 +106,6 @@
                             "edit": {
                                 "type": "ValidationTextBox"
                             }
-                        },
-                        {
-                            "caption": "Laufzeit Min.",
-                            "name": "Duration",
-                            "width": "120px",
-                            "add": 10,
-                            "edit": {
-                                "type": "NumberSpinner",
-                                "minimum": 1,
-                                "maximum": 240
-                            }
                         }
                     ]
                 }
@@ -129,7 +118,7 @@
             "items": [
                 {
                     "type": "Label",
-                    "caption": "Die auswählbaren Ventile werden aus der Ventilliste erzeugt. Wenn hier keine Ventile auswählbar sind: oben Ventile aktivieren, Variable auswählen, Übernehmen drücken, Instanz neu öffnen."
+                    "caption": "Die auswählbaren Ventile werden aus der Ventilliste erzeugt. Auch Gruppen verwenden immer die WebFront-Zeit „Laufzeit Minuten“ je Ventil."
                 },
                 {
                     "type": "List",
@@ -235,17 +224,6 @@
                             "edit": {
                                 "type": "Select",
                                 "options": []
-                            }
-                        },
-                        {
-                            "caption": "Laufzeit Min.",
-                            "name": "Duration",
-                            "width": "120px",
-                            "add": 10,
-                            "edit": {
-                                "type": "NumberSpinner",
-                                "minimum": 1,
-                                "maximum": 240
                             }
                         }
                     ]
