@@ -28,7 +28,12 @@
         {
             "type": "ExpansionPanel",
             "caption": "Ventile",
+            "expanded": true,
             "items": [
+                {
+                    "type": "Label",
+                    "caption": "Wähle hier die Variablen aus, welche die Ventile schalten. Bei Auto werden Ein-/Aus-Werte aus Variablentyp und Profil ermittelt."
+                },
                 {
                     "type": "List",
                     "name": "Valves",
@@ -44,7 +49,7 @@
                         {
                             "caption": "Aktiv",
                             "name": "Active",
-                            "width": "80px",
+                            "width": "70px",
                             "add": true,
                             "edit": {
                                 "type": "CheckBox"
@@ -53,7 +58,7 @@
                         {
                             "caption": "Name",
                             "name": "Name",
-                            "width": "250px",
+                            "width": "220px",
                             "add": "",
                             "edit": {
                                 "type": "ValidationTextBox"
@@ -62,18 +67,23 @@
                         {
                             "caption": "VariableID",
                             "name": "VariableID",
-                            "width": "120px",
-                            "add": 0,
+                            "width": "100px",
+                            "add": 0
+                        },
+                        {
+                            "caption": "Auto",
+                            "name": "AutoValues",
+                            "width": "70px",
+                            "add": true,
                             "edit": {
-                                "type": "NumberSpinner",
-                                "minimum": 1
+                                "type": "CheckBox"
                             }
                         },
                         {
                             "caption": "Ein-Wert",
                             "name": "OnValue",
                             "width": "100px",
-                            "add": true,
+                            "add": "",
                             "edit": {
                                 "type": "ValidationTextBox"
                             }
@@ -82,7 +92,7 @@
                             "caption": "Aus-Wert",
                             "name": "OffValue",
                             "width": "100px",
-                            "add": false,
+                            "add": "",
                             "edit": {
                                 "type": "ValidationTextBox"
                             }
@@ -98,6 +108,52 @@
                                 "maximum": 240
                             }
                         }
+                    ],
+                    "form": [
+                        {
+                            "type": "CheckBox",
+                            "name": "Active",
+                            "caption": "Aktiv"
+                        },
+                        {
+                            "type": "ValidationTextBox",
+                            "name": "Name",
+                            "caption": "Bezeichnung"
+                        },
+                        {
+                            "type": "SelectVariable",
+                            "name": "VariableID",
+                            "caption": "Ventil-Variable",
+                            "requiredAction": 1,
+                            "validVariableTypes": [
+                                0,
+                                1,
+                                2,
+                                3
+                            ]
+                        },
+                        {
+                            "type": "CheckBox",
+                            "name": "AutoValues",
+                            "caption": "Ein-/Aus-Wert automatisch aus Variablentyp/Profil ermitteln"
+                        },
+                        {
+                            "type": "ValidationTextBox",
+                            "name": "OnValue",
+                            "caption": "Ein-Wert manuell, optional"
+                        },
+                        {
+                            "type": "ValidationTextBox",
+                            "name": "OffValue",
+                            "caption": "Aus-Wert manuell, optional"
+                        },
+                        {
+                            "type": "NumberSpinner",
+                            "name": "Duration",
+                            "caption": "Standardlaufzeit in Minuten",
+                            "minimum": 1,
+                            "maximum": 240
+                        }
                     ]
                 }
             ]
@@ -105,7 +161,12 @@
         {
             "type": "ExpansionPanel",
             "caption": "Gruppen",
+            "expanded": true,
             "items": [
+                {
+                    "type": "Label",
+                    "caption": "Bei Ventile werden die Ventilnamen kommasepariert eingetragen. Die Namen müssen exakt den Ventilnamen aus der Ventilliste entsprechen."
+                },
                 {
                     "type": "List",
                     "name": "Groups",
@@ -117,7 +178,7 @@
                         {
                             "caption": "Aktiv",
                             "name": "Active",
-                            "width": "80px",
+                            "width": "70px",
                             "add": true,
                             "edit": {
                                 "type": "CheckBox"
@@ -126,7 +187,7 @@
                         {
                             "caption": "Name",
                             "name": "Name",
-                            "width": "250px",
+                            "width": "220px",
                             "add": "",
                             "edit": {
                                 "type": "ValidationTextBox"
@@ -135,7 +196,7 @@
                         {
                             "caption": "Ventile",
                             "name": "Valves",
-                            "width": "400px",
+                            "width": "450px",
                             "add": "",
                             "edit": {
                                 "type": "ValidationTextBox"
@@ -151,6 +212,30 @@
                                 "minimum": 1,
                                 "maximum": 240
                             }
+                        }
+                    ],
+                    "form": [
+                        {
+                            "type": "CheckBox",
+                            "name": "Active",
+                            "caption": "Aktiv"
+                        },
+                        {
+                            "type": "ValidationTextBox",
+                            "name": "Name",
+                            "caption": "Gruppenname"
+                        },
+                        {
+                            "type": "ValidationTextBox",
+                            "name": "Valves",
+                            "caption": "Ventile, kommasepariert"
+                        },
+                        {
+                            "type": "NumberSpinner",
+                            "name": "Duration",
+                            "caption": "Laufzeit je Ventil in Minuten",
+                            "minimum": 1,
+                            "maximum": 240
                         }
                     ]
                 }

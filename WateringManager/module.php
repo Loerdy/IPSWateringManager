@@ -11,6 +11,7 @@ class WateringManager extends IPSModule
         $this->RegisterPropertyInteger('DefaultDuration', 10);
         $this->RegisterPropertyInteger('PauseBetweenValves', 10);
         $this->RegisterPropertyInteger('MaxDuration', 60);
+
         $this->RegisterPropertyString('Valves', '[]');
         $this->RegisterPropertyString('Groups', '[]');
 
@@ -189,6 +190,7 @@ class WateringManager extends IPSModule
 
         if ($mode === 'valve') {
             $this->WriteAttributeString('CurrentMode', '');
+            $this->WriteAttributeString('CurrentGroup', '');
             $this->WriteAttributeInteger('CurrentIndex', -1);
             $this->WriteAttributeInteger('EndTime', 0);
             $this->WriteAttributeString('ActiveValveName', '');
@@ -310,9 +312,13 @@ class WateringManager extends IPSModule
             IPS_CreateVariableProfile($profile, 1);
         }
 
-        IPS_SetVariableProfileAssociation($profile, 0, '-', '', -1);
+        foreach (IPS_GetVariableProfile($profile)['Associations'] as $association) {
+            IPS_SetVariableProfileAssociation($profile, $association['Value'], '', '', -1);
+        }
 
-        foreach ($this->GetActiveValves() as $index => $valve) {
+        $valves = $this->GetActiveValves();
+
+        foreach ($valves as $index => $valve) {
             IPS_SetVariableProfileAssociation($profile, $index, (string)$valve['Name'], '', -1);
         }
     }
@@ -325,9 +331,13 @@ class WateringManager extends IPSModule
             IPS_CreateVariableProfile($profile, 1);
         }
 
-        IPS_SetVariableProfileAssociation($profile, 0, '-', '', -1);
+        foreach (IPS_GetVariableProfile($profile)['Associations'] as $association) {
+            IPS_SetVariableProfileAssociation($profile, $association['Value'], '', '', -1);
+        }
 
-        foreach ($this->GetActiveGroups() as $index => $group) {
+        $groups = $this->GetActiveGroups();
+
+        foreach ($groups as $index => $group) {
             IPS_SetVariableProfileAssociation($profile, $index, (string)$group['Name'], '', -1);
         }
     }
@@ -341,7 +351,10 @@ class WateringManager extends IPSModule
         }
 
         return array_values(array_filter($valves, function ($valve) {
-            return isset($valve['Active']) && (bool)$valve['Active'] === true && trim((string)($valve['Name'] ?? '')) !== '';
+            return isset($valve['Active'])
+                && (bool)$valve['Active'] === true
+                && trim((string)($valve['Name'] ?? '')) !== ''
+                && (int)($valve['VariableID'] ?? 0) > 0;
         }));
     }
 
@@ -354,7 +367,9 @@ class WateringManager extends IPSModule
         }
 
         return array_values(array_filter($groups, function ($group) {
-            return isset($group['Active']) && (bool)$group['Active'] === true && trim((string)($group['Name'] ?? '')) !== '';
+            return isset($group['Active'])
+                && (bool)$group['Active'] === true
+                && trim((string)($group['Name'] ?? '')) !== '';
         }));
     }
 
@@ -396,15 +411,20 @@ class WateringManager extends IPSModule
             throw new Exception('Ungültige VariableID für Ventil: ' . ($valve['Name'] ?? 'Unbekannt'));
         }
 
-        $value = $state ? $this->ConvertValue($valve['OnValue'] ?? true) : $this->ConvertValue($valve['OffValue'] ?? false);
+        $value = $this->GetValveSwitchValue($valve, $state);
+        $variable = IPS_GetVariable($variableID);
 
-        if (IPS_GetVariable($variableID)['VariableAction'] > 0) {
+        if ((int)$variable['VariableAction'] > 0) {
             RequestAction($variableID, $value);
         } else {
             SetValue($variableID, $value);
         }
 
-        $this->SendDebug('SwitchValve', ($state ? 'Ein: ' : 'Aus: ') . $valve['Name'], 0);
+        $this->SendDebug(
+            'SwitchValve',
+            ($state ? 'Ein: ' : 'Aus: ') . ($valve['Name'] ?? 'Unbekannt') . ' / Wert: ' . json_encode($value),
+            0
+        );
     }
 
     private function AllValvesOff(): void
@@ -416,6 +436,96 @@ class WateringManager extends IPSModule
                 $this->SendDebug('AllValvesOff', $e->getMessage(), 0);
             }
         }
+    }
+
+    private function GetValveSwitchValue(array $valve, bool $state)
+    {
+        $autoValues = (bool)($valve['AutoValues'] ?? true);
+
+        if (!$autoValues) {
+            $manualValue = $state ? ($valve['OnValue'] ?? '') : ($valve['OffValue'] ?? '');
+            return $this->ConvertValue($manualValue);
+        }
+
+        $variableID = (int)($valve['VariableID'] ?? 0);
+        $variable = IPS_GetVariable($variableID);
+        $variableType = (int)$variable['VariableType'];
+
+        if ($variableType === 0) {
+            return $state;
+        }
+
+        $profileName = $variable['VariableCustomProfile'] ?: $variable['VariableProfile'];
+
+        if ($profileName !== '' && IPS_VariableProfileExists($profileName)) {
+            $detectedValue = $this->DetectProfileSwitchValue($profileName, $state);
+
+            if ($detectedValue !== null) {
+                return $this->ConvertValue($detectedValue);
+            }
+        }
+
+        $manualValue = $state ? ($valve['OnValue'] ?? '') : ($valve['OffValue'] ?? '');
+
+        if ((string)$manualValue !== '') {
+            return $this->ConvertValue($manualValue);
+        }
+
+        if ($variableType === 1 || $variableType === 2) {
+            return $state ? 1 : 0;
+        }
+
+        if ($variableType === 3) {
+            return $state ? 'ON' : 'OFF';
+        }
+
+        throw new Exception('Schaltwert konnte nicht ermittelt werden für Ventil: ' . ($valve['Name'] ?? 'Unbekannt'));
+    }
+
+    private function DetectProfileSwitchValue(string $profileName, bool $state)
+    {
+        $profile = IPS_GetVariableProfile($profileName);
+
+        if (!isset($profile['Associations']) || !is_array($profile['Associations'])) {
+            return null;
+        }
+
+        $onNames = [
+            'ein',
+            'on',
+            'open',
+            'öffnen',
+            'geöffnet',
+            'start',
+            'true',
+            'an',
+            'aktiv'
+        ];
+
+        $offNames = [
+            'aus',
+            'off',
+            'close',
+            'geschlossen',
+            'schließen',
+            'stop',
+            'false',
+            'inaktiv'
+        ];
+
+        $searchNames = $state ? $onNames : $offNames;
+
+        foreach ($profile['Associations'] as $association) {
+            $name = strtolower((string)($association['Name'] ?? ''));
+
+            foreach ($searchNames as $searchName) {
+                if ($name === $searchName || str_contains($name, $searchName)) {
+                    return $association['Value'];
+                }
+            }
+        }
+
+        return null;
     }
 
     private function ConvertValue($value)
@@ -444,8 +554,10 @@ class WateringManager extends IPSModule
 
     private function SetStatusText(string $text): void
     {
-        if (@$this->GetIDForIdent('Status') > 0) {
+        try {
             SetValue($this->GetIDForIdent('Status'), $text);
+        } catch (Throwable $e) {
+            // Statusvariable existiert eventuell noch nicht.
         }
 
         $this->SendDebug('Status', $text, 0);
