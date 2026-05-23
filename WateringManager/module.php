@@ -38,12 +38,14 @@ class WateringManager extends IPSModule
 
         $this->RegisterVariableInteger('SelectedValve', 'Ventil auswählen', 'BWM.Valves.' . $this->InstanceID, 40);
         $this->EnableAction('SelectedValve');
+        IPS_SetVariableCustomProfile($this->GetIDForIdent('SelectedValve'), 'BWM.Valves.' . $this->InstanceID);
 
         $this->RegisterVariableBoolean('StartValve', 'Ventil starten', '~Switch', 50);
         $this->EnableAction('StartValve');
 
         $this->RegisterVariableInteger('SelectedGroup', 'Gruppe auswählen', 'BWM.Groups.' . $this->InstanceID, 60);
         $this->EnableAction('SelectedGroup');
+        IPS_SetVariableCustomProfile($this->GetIDForIdent('SelectedGroup'), 'BWM.Groups.' . $this->InstanceID);
 
         $this->RegisterVariableBoolean('StartGroup', 'Gruppe starten', '~Switch', 70);
         $this->EnableAction('StartGroup');
@@ -51,15 +53,15 @@ class WateringManager extends IPSModule
         $this->RegisterVariableBoolean('Stop', 'Stop / Not-Aus', '~Switch', 80);
         $this->EnableAction('Stop');
 
-        if (GetValue($this->GetIDForIdent('Duration')) <= 0) {
+        if (@$this->GetIDForIdent('Duration') > 0 && GetValue($this->GetIDForIdent('Duration')) <= 0) {
             SetValue($this->GetIDForIdent('Duration'), $this->ReadPropertyInteger('DefaultDuration'));
         }
 
-        SetValue($this->GetIDForIdent('Status'), 'Bereit');
-        SetValue($this->GetIDForIdent('ActiveValve'), '-');
-        SetValue($this->GetIDForIdent('StartValve'), false);
-        SetValue($this->GetIDForIdent('StartGroup'), false);
-        SetValue($this->GetIDForIdent('Stop'), false);
+        $this->SafeSetValue('Status', 'Bereit');
+        $this->SafeSetValue('ActiveValve', '-');
+        $this->SafeSetValue('StartValve', false);
+        $this->SafeSetValue('StartGroup', false);
+        $this->SafeSetValue('Stop', false);
     }
 
     public function GetConfigurationForm()
@@ -78,7 +80,49 @@ class WateringManager extends IPSModule
             ]);
         }
 
-        return file_get_contents($file);
+        $form = json_decode(file_get_contents($file), true);
+
+        if (!is_array($form)) {
+            return json_encode([
+                'elements' => [
+                    [
+                        'type' => 'Label',
+                        'caption' => 'form.json ist kein gültiges JSON.'
+                    ]
+                ],
+                'actions' => []
+            ]);
+        }
+
+        $options = $this->BuildValveOptions();
+
+        if (isset($form['elements']) && is_array($form['elements'])) {
+            foreach ($form['elements'] as &$element) {
+                if (($element['type'] ?? '') !== 'ExpansionPanel' || ($element['caption'] ?? '') !== 'Gruppen') {
+                    continue;
+                }
+
+                if (!isset($element['items']) || !is_array($element['items'])) {
+                    continue;
+                }
+
+                foreach ($element['items'] as &$item) {
+                    if (($item['type'] ?? '') !== 'List' || ($item['name'] ?? '') !== 'Groups') {
+                        continue;
+                    }
+
+                    if (isset($item['form']) && is_array($item['form'])) {
+                        foreach ($item['form'] as &$field) {
+                            if (isset($field['name']) && preg_match('/^Valve[1-8]$/', (string)$field['name'])) {
+                                $field['options'] = $options;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return json_encode($form);
     }
 
     public function RequestAction($Ident, $Value)
@@ -98,17 +142,23 @@ class WateringManager extends IPSModule
 
             case 'StartValve':
                 SetValue($this->GetIDForIdent('StartValve'), false);
-                $this->StartSelectedValve();
+                if ((bool)$Value === true) {
+                    $this->StartSelectedValve();
+                }
                 break;
 
             case 'StartGroup':
                 SetValue($this->GetIDForIdent('StartGroup'), false);
-                $this->StartSelectedGroup();
+                if ((bool)$Value === true) {
+                    $this->StartSelectedGroup();
+                }
                 break;
 
             case 'Stop':
                 SetValue($this->GetIDForIdent('Stop'), false);
-                $this->EmergencyStop();
+                if ((bool)$Value === true) {
+                    $this->EmergencyStop();
+                }
                 break;
 
             default:
@@ -132,21 +182,26 @@ class WateringManager extends IPSModule
             return;
         }
 
-        $duration = $this->GetRequestedDurationSeconds($valves[$index]);
+        try {
+            $duration = $this->GetRequestedDurationSeconds($valves[$index]);
 
-        $this->AllValvesOff();
-        $this->SwitchValve($valves[$index], true);
+            $this->AllValvesOff();
+            $this->SwitchValve($valves[$index], true);
 
-        $this->WriteAttributeString('CurrentMode', 'valve');
-        $this->WriteAttributeString('CurrentGroup', '');
-        $this->WriteAttributeInteger('CurrentIndex', $index);
-        $this->WriteAttributeInteger('EndTime', time() + $duration);
-        $this->WriteAttributeString('ActiveValveName', (string)$valves[$index]['Name']);
+            $this->WriteAttributeString('CurrentMode', 'valve');
+            $this->WriteAttributeString('CurrentGroup', '');
+            $this->WriteAttributeInteger('CurrentIndex', $index);
+            $this->WriteAttributeInteger('EndTime', time() + $duration);
+            $this->WriteAttributeString('ActiveValveName', (string)$valves[$index]['Name']);
 
-        SetValue($this->GetIDForIdent('ActiveValve'), (string)$valves[$index]['Name']);
-        $this->SetStatusText('Bewässerung läuft: ' . $valves[$index]['Name']);
+            SetValue($this->GetIDForIdent('ActiveValve'), (string)$valves[$index]['Name']);
+            $this->SetStatusText('Bewässerung läuft: ' . $valves[$index]['Name']);
 
-        $this->SetTimerInterval('RunTimer', $duration * 1000);
+            $this->SetTimerInterval('RunTimer', $duration * 1000);
+        } catch (Throwable $e) {
+            $this->EmergencyStop();
+            $this->SetStatusText('Fehler beim Starten des Ventils: ' . $e->getMessage());
+        }
     }
 
     public function StartSelectedGroup()
@@ -165,15 +220,27 @@ class WateringManager extends IPSModule
             return;
         }
 
-        $this->AllValvesOff();
+        $valveNames = $this->GetGroupValveNames($groups[$groupIndex]);
 
-        $this->WriteAttributeString('CurrentMode', 'group');
-        $this->WriteAttributeString('CurrentGroup', (string)$groups[$groupIndex]['Name']);
-        $this->WriteAttributeInteger('CurrentIndex', -1);
-        $this->WriteAttributeInteger('EndTime', 0);
-        $this->WriteAttributeString('ActiveValveName', '');
+        if (count($valveNames) === 0) {
+            $this->SetStatusText('Gruppe enthält keine Ventile: ' . (string)$groups[$groupIndex]['Name']);
+            return;
+        }
 
-        $this->RunNextStep();
+        try {
+            $this->AllValvesOff();
+
+            $this->WriteAttributeString('CurrentMode', 'group');
+            $this->WriteAttributeString('CurrentGroup', (string)$groups[$groupIndex]['Name']);
+            $this->WriteAttributeInteger('CurrentIndex', -1);
+            $this->WriteAttributeInteger('EndTime', 0);
+            $this->WriteAttributeString('ActiveValveName', '');
+
+            $this->RunNextStep();
+        } catch (Throwable $e) {
+            $this->EmergencyStop();
+            $this->SetStatusText('Fehler beim Starten der Gruppe: ' . $e->getMessage());
+        }
     }
 
     public function RunNextStep()
@@ -195,7 +262,7 @@ class WateringManager extends IPSModule
             $this->WriteAttributeInteger('EndTime', 0);
             $this->WriteAttributeString('ActiveValveName', '');
 
-            SetValue($this->GetIDForIdent('ActiveValve'), '-');
+            $this->SafeSetValue('ActiveValve', '-');
             $this->SetStatusText('Bereit');
             return;
         }
@@ -224,7 +291,7 @@ class WateringManager extends IPSModule
             return;
         }
 
-        $valveNames = array_filter(array_map('trim', explode(',', (string)$group['Valves'])));
+        $valveNames = $this->GetGroupValveNames($group);
 
         $currentIndex = $this->ReadAttributeInteger('CurrentIndex');
         $nextIndex = $currentIndex + 1;
@@ -236,7 +303,7 @@ class WateringManager extends IPSModule
             $this->WriteAttributeInteger('EndTime', 0);
             $this->WriteAttributeString('ActiveValveName', '');
 
-            SetValue($this->GetIDForIdent('ActiveValve'), '-');
+            $this->SafeSetValue('ActiveValve', '-');
             $this->SetStatusText('Gruppe beendet: ' . $groupName);
             return;
         }
@@ -257,25 +324,30 @@ class WateringManager extends IPSModule
             return;
         }
 
-        $durationMinutes = (int)($group['Duration'] ?? 0);
+        try {
+            $durationMinutes = (int)($group['Duration'] ?? 0);
 
-        if ($durationMinutes <= 0) {
-            $durationSeconds = $this->GetRequestedDurationSeconds($nextValve);
-        } else {
-            $durationSeconds = $this->LimitDurationSeconds($durationMinutes * 60);
+            if ($durationMinutes <= 0) {
+                $durationSeconds = $this->GetRequestedDurationSeconds($nextValve);
+            } else {
+                $durationSeconds = $this->LimitDurationSeconds($durationMinutes * 60);
+            }
+
+            $this->SwitchValve($nextValve, true);
+
+            $this->WriteAttributeInteger('CurrentIndex', $nextIndex);
+            $this->WriteAttributeInteger('EndTime', time() + $durationSeconds);
+            $this->WriteAttributeString('ActiveValveName', (string)$nextValve['Name']);
+
+            SetValue($this->GetIDForIdent('ActiveValve'), (string)$nextValve['Name']);
+            $this->SetStatusText('Gruppe läuft: ' . $groupName . ' / Ventil: ' . $nextValve['Name']);
+
+            $pause = $this->ReadPropertyInteger('PauseBetweenValves');
+            $this->SetTimerInterval('RunTimer', ($durationSeconds + $pause) * 1000);
+        } catch (Throwable $e) {
+            $this->EmergencyStop();
+            $this->SetStatusText('Fehler im Gruppenlauf: ' . $e->getMessage());
         }
-
-        $this->SwitchValve($nextValve, true);
-
-        $this->WriteAttributeInteger('CurrentIndex', $nextIndex);
-        $this->WriteAttributeInteger('EndTime', time() + $durationSeconds);
-        $this->WriteAttributeString('ActiveValveName', (string)$nextValve['Name']);
-
-        SetValue($this->GetIDForIdent('ActiveValve'), (string)$nextValve['Name']);
-        $this->SetStatusText('Gruppe läuft: ' . $groupName . ' / Ventil: ' . $nextValve['Name']);
-
-        $pause = $this->ReadPropertyInteger('PauseBetweenValves');
-        $this->SetTimerInterval('RunTimer', ($durationSeconds + $pause) * 1000);
     }
 
     public function EmergencyStop()
@@ -290,21 +362,21 @@ class WateringManager extends IPSModule
         $this->WriteAttributeInteger('EndTime', 0);
         $this->WriteAttributeString('ActiveValveName', '');
 
-        SetValue($this->GetIDForIdent('ActiveValve'), '-');
-        SetValue($this->GetIDForIdent('StartValve'), false);
-        SetValue($this->GetIDForIdent('StartGroup'), false);
-        SetValue($this->GetIDForIdent('Stop'), false);
+        $this->SafeSetValue('ActiveValve', '-');
+        $this->SafeSetValue('StartValve', false);
+        $this->SafeSetValue('StartGroup', false);
+        $this->SafeSetValue('Stop', false);
 
         $this->SetStatusText('Gestoppt');
     }
 
-    private function RegisterProfiles()
+    private function RegisterProfiles(): void
     {
         $this->RegisterValveProfile();
         $this->RegisterGroupProfile();
     }
 
-    private function RegisterValveProfile()
+    private function RegisterValveProfile(): void
     {
         $profile = 'BWM.Valves.' . $this->InstanceID;
 
@@ -312,9 +384,7 @@ class WateringManager extends IPSModule
             IPS_CreateVariableProfile($profile, 1);
         }
 
-        foreach (IPS_GetVariableProfile($profile)['Associations'] as $association) {
-            IPS_SetVariableProfileAssociation($profile, $association['Value'], '', '', -1);
-        }
+        $this->ClearProfileAssociations($profile);
 
         $valves = $this->GetActiveValves();
 
@@ -323,7 +393,7 @@ class WateringManager extends IPSModule
         }
     }
 
-    private function RegisterGroupProfile()
+    private function RegisterGroupProfile(): void
     {
         $profile = 'BWM.Groups.' . $this->InstanceID;
 
@@ -331,15 +401,61 @@ class WateringManager extends IPSModule
             IPS_CreateVariableProfile($profile, 1);
         }
 
-        foreach (IPS_GetVariableProfile($profile)['Associations'] as $association) {
-            IPS_SetVariableProfileAssociation($profile, $association['Value'], '', '', -1);
-        }
+        $this->ClearProfileAssociations($profile);
 
         $groups = $this->GetActiveGroups();
 
         foreach ($groups as $index => $group) {
             IPS_SetVariableProfileAssociation($profile, $index, (string)$group['Name'], '', -1);
         }
+    }
+
+    private function ClearProfileAssociations(string $profile): void
+    {
+        $profileData = IPS_GetVariableProfile($profile);
+
+        if (!isset($profileData['Associations']) || !is_array($profileData['Associations'])) {
+            return;
+        }
+
+        foreach ($profileData['Associations'] as $association) {
+            IPS_SetVariableProfileAssociation($profile, $association['Value'], '', '', -1);
+        }
+    }
+
+    private function BuildValveOptions(): array
+    {
+        $options = [
+            [
+                'caption' => '-',
+                'value' => ''
+            ]
+        ];
+
+        $valves = json_decode($this->ReadPropertyString('Valves'), true);
+
+        if (!is_array($valves)) {
+            return $options;
+        }
+
+        foreach ($valves as $valve) {
+            $name = trim((string)($valve['Name'] ?? ''));
+
+            if ($name === '') {
+                continue;
+            }
+
+            if (isset($valve['Active']) && (bool)$valve['Active'] !== true) {
+                continue;
+            }
+
+            $options[] = [
+                'caption' => $name,
+                'value' => $name
+            ];
+        }
+
+        return $options;
     }
 
     private function GetActiveValves(): array
@@ -373,9 +489,31 @@ class WateringManager extends IPSModule
         }));
     }
 
+    private function GetGroupValveNames(array $group): array
+    {
+        $names = [];
+
+        for ($i = 1; $i <= 8; $i++) {
+            $key = 'Valve' . $i;
+            $name = trim((string)($group[$key] ?? ''));
+
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     private function GetRequestedDurationSeconds(array $valve): int
     {
-        $durationMinutes = GetValue($this->GetIDForIdent('Duration'));
+        $durationMinutes = 0;
+
+        try {
+            $durationMinutes = GetValue($this->GetIDForIdent('Duration'));
+        } catch (Throwable $e) {
+            $durationMinutes = 0;
+        }
 
         if ($durationMinutes <= 0) {
             $durationMinutes = (int)($valve['Duration'] ?? 0);
@@ -552,14 +690,19 @@ class WateringManager extends IPSModule
         return $value;
     }
 
-    private function SetStatusText(string $text): void
+    private function SafeSetValue(string $ident, $value): void
     {
         try {
-            SetValue($this->GetIDForIdent('Status'), $text);
+            $id = $this->GetIDForIdent($ident);
+            SetValue($id, $value);
         } catch (Throwable $e) {
-            // Statusvariable existiert eventuell noch nicht.
+            // Variable existiert eventuell noch nicht.
         }
+    }
 
+    private function SetStatusText(string $text): void
+    {
+        $this->SafeSetValue('Status', $text);
         $this->SendDebug('Status', $text, 0);
     }
 }
